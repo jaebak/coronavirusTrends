@@ -11,9 +11,11 @@ import datetime
 import argparse
 
 # Plots countries that have a daily increase of above lowLimitCase
+# data[country][date] = (0: newCases, 1: newDeaths, 2: newRecoveries, 3: totalCases, 4: totalDeaths, 5: totalRecoveries, 6: totalActiveCases)
+# interestedIndex: the index in data to use for plotting
 # dayLimit sets the number of days to plot
 # maxCase sets the maximum number of cases to plot
-def drawCases(data, interestedIndex=4, title="Total Cases", filename='totalCases.pdf', dayLimit=-1, lowLimitCase=200, maxCase = -1, interestedCountries=[], ignoreCountries=['Worldwide', 'International conveyance (Diamond Princess)', 'International', 'Others', 'World', 'Cruise Ship'], maxExcludeCountry = ['China']):
+def drawCases(data, interestedIndex=3, title="Total Cases", filename='totalCases.pdf', dayLimit=-1, lowLimitCase=200, maxCase = -1, interestedCountries=[], ignoreCountries=['Worldwide', 'International conveyance (Diamond Princess)', 'International', 'Others', 'World', 'Cruise Ship'], maxExcludeCountry = ['China']):
   # Collect interested data depending on rowIndex. Sort country by number of cases
   # data[country][date] = (newCases, newDeaths, newRecoveries, totalCases, totalDeaths, totalRecoveries, totalActiveCases)
   # interestData[country][date] = case
@@ -44,8 +46,8 @@ def drawCases(data, interestedIndex=4, title="Total Cases", filename='totalCases
       interestDataRoot[country][1].append(interestData[country][date])
 
   # Draw settings
-  canvas = ROOT.TCanvas("c"+title,"c"+title,500,500)
-  markers = [20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34]
+  canvas = ROOT.TCanvas("c"+title,"c"+title,750,750)
+  markers = [20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 32, 33, 34]
   colors = [1, 2, 3, 4, 6, 7, 8, 9]
 
   # Make TGraphs
@@ -98,6 +100,7 @@ def drawCases(data, interestedIndex=4, title="Total Cases", filename='totalCases
     if countPoints!= 0:
       sgraph = ROOT.TGraph(countPoints, xArray, yArray)
       sgraph.SetTitle(graph.GetTitle())
+      sgraph.SetMarkerSize(2)
       sgraph.SetMarkerStyle(markers[iGraph%len(markers)])
       sgraph.SetMarkerColor(colors[iGraph%len(colors)])
       sgraph.SetLineColor(colors[iGraph%len(colors)])
@@ -124,10 +127,10 @@ def drawCases(data, interestedIndex=4, title="Total Cases", filename='totalCases
 
   canvas.SaveAs(filename)
 
-def getDataFromWorldInData(dataFolder='./'):
+def getDataFromWorldInData(dataFolder='./', tag=''):
   if not os.path.exists(dataFolder): os.makesdir(dataFolder)
   confirmedUrl = 'http://cowid.netlify.com/data/full_data.csv'
-  filepath = os.path.join(dataFolder, os.path.basename(confirmedUrl))
+  filepath = os.path.join(dataFolder, tag+os.path.basename(confirmedUrl))
 
   # Gets data from url
   inFile = urllib2.urlopen(confirmedUrl)
@@ -169,7 +172,7 @@ def getDataFromWorldInData(dataFolder='./'):
 
   return data
 
-def getDataFromJohnHopkins(dataFolder='./'):
+def getDataFromJohnHopkins(dataFolder='./', tag=''):
   if not os.path.exists(dataFolder): os.makesdir(dataFolder)
   # Get time series data
   links = [
@@ -180,7 +183,7 @@ def getDataFromJohnHopkins(dataFolder='./'):
   # Download files
   files = []
   for url in links:
-    filename = os.path.basename(url)
+    filename = tag+os.path.basename(url)
     filepath = os.path.join(dataFolder,filename)
     files.append(filepath)
     # Gets data from url
@@ -225,11 +228,11 @@ def getDataFromJohnHopkins(dataFolder='./'):
           if date not in rawData[country]:
             rawData[country][date] = [0,0,0,0,0,0,0]
           # Collect region results to country
-          if filename == "time_series_19-covid-Confirmed.csv":
+          if "time_series_19-covid-Confirmed" in filename:
             rawData[country][date][3] += case
-          if filename == "time_series_19-covid-Deaths.csv":
+          if "time_series_19-covid-Deaths" in filename:
             rawData[country][date][4] += case
-          if filename == "time_series_19-covid-Recovered.csv":
+          if "time_series_19-covid-Recovered" in filename:
             rawData[country][date][5] += case
 
   # Sort data
@@ -260,36 +263,51 @@ if __name__ == "__main__":
   parser.add_argument('--jh', default=False, action='store_true', help='Use John Hopkins data')
   parser.add_argument('--wd', default=False, action='store_true', help='Use ourworldindata data')
   parser.add_argument('--outputFolder', default='./', help='Folder to store data and results')
+  parser.add_argument('--png', default=False, action='store_true', help='Make plots with png')
+  parser.add_argument('--dateTag', default=False, action='store_true', help='Add date tag to output files')
   args = parser.parse_args()
 
+  # Handle arguments
+  # Set dataType
   if args.wd: dataType = "WorldInData"
   elif args.jh: dataType = "JohnHopkins"
   else: dataType = "WorldInData"
+  # Set plotExtension
+  if args.png: plotExtension = 'png'
+  else: plotExtension = 'pdf'
+  # Set tag
+  if args.dateTag: outputTag = datetime.datetime.now().strftime('%Y%m%d')+"_"
+  else: outputTag = '' 
 
   # Gets data from source
   # data[country][date] = (newCases, newDeaths, newRecoveries, totalCases, totalDeaths, totalRecoveries, totalActiveCases)
   if dataType == "WorldInData": 
-    data = getDataFromWorldInData(dataFolder=args.outputFolder)
+    data = getDataFromWorldInData(dataFolder=args.outputFolder, tag=outputTag)
   if dataType == "JohnHopkins":
-    data = getDataFromJohnHopkins(dataFolder=args.outputFolder)
+    data = getDataFromJohnHopkins(dataFolder=args.outputFolder, tag=outputTag)
 
+  # Printing country names
   print('Countries: '+', '.join(data.keys()))
 
   # Plots countries that have a daily increase of above lowLimitCase
+  #
   # Can set countries one is interested in. Below is an example.
-  #interestedCountries = ["China", "Italy", "Iran", "South Korea", "Germany", "United States", "Switzerland"]
+  # interestedCountries = ["China", "Italy", "Iran", "South Korea", "Germany", "United States", "Switzerland"]
+  #
+  # data[country][date] = (0: newCases, 1: newDeaths, 2: newRecoveries, 3: totalCases, 4: totalDeaths, 5: totalRecoveries, 6: totalActiveCases)
+  # interestedIndex: the index in data to use for plotting
   interestedCountries = []
   if dataType == "WorldInData":
-    drawCases(data, interestedIndex=3, title="Total Cases", filename=os.path.join(args.outputFolder,'TotalCasesWD.pdf'), 
+    drawCases(data, interestedIndex=3, title="Total Cases", filename=os.path.join(args.outputFolder,outputTag+'TotalCasesWD.'+plotExtension), 
       lowLimitCase=150, interestedCountries=interestedCountries)
-    drawCases(data, interestedIndex=4, title="Total Deaths", filename=os.path.join(args.outputFolder,'TotalDeathsWD.pdf'), 
+    drawCases(data, interestedIndex=4, title="Total Deaths", filename=os.path.join(args.outputFolder,outputTag+'TotalDeathsWD.'+plotExtension), 
       lowLimitCase=7, interestedCountries=interestedCountries)
   if dataType == "JohnHopkins":
-    drawCases(data, interestedIndex=3, title="Total Cases", filename=os.path.join(args.outputFolder,'TotalCasesJH.pdf'), 
+    drawCases(data, interestedIndex=3, title="Total Cases", filename=os.path.join(args.outputFolder,outputTag+'TotalCasesJH.'+plotExtension), 
       lowLimitCase=150, interestedCountries=interestedCountries)
-    drawCases(data, interestedIndex=4, title="Total Deaths", filename=os.path.join(args.outputFolder,'TotalDeathsJH.pdf'), 
+    drawCases(data, interestedIndex=4, title="Total Deaths", filename=os.path.join(args.outputFolder,outputTag+'TotalDeathsJH.'+plotExtension), 
       lowLimitCase=7, interestedCountries=interestedCountries)
-    drawCases(data, interestedIndex=5, title="Total Recoveries", filename=os.path.join(args.outputFolder,'TotalRecoveriesJH.pdf'), 
+    drawCases(data, interestedIndex=5, title="Total Recoveries", filename=os.path.join(args.outputFolder,outputTag+'TotalRecoveriesJH.'+plotExtension), 
       lowLimitCase=10, interestedCountries=interestedCountries)
-    drawCases(data, interestedIndex=6, title="Total Active Cases", filename=os.path.join(args.outputFolder,'TotalActiveCasesJH.pdf'), 
+    drawCases(data, interestedIndex=6, title="Total Active Cases", filename=os.path.join(args.outputFolder,outputTag+'TotalActiveCasesJH.'+plotExtension), 
       lowLimitCase=150, interestedCountries=interestedCountries)
