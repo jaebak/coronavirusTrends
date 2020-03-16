@@ -1,4 +1,5 @@
-#!/usr/bin/env python
+#!/opt/local/bin/python3.6
+import ROOT
 import urllib2
 import csv
 import array
@@ -8,9 +9,13 @@ import os
 import glob
 import datetime
 import argparse
-import matplotlib.pyplot as plt
-import numpy as np
+##!/usr/bin/env python
 
+# Plots countries that have a daily increase of above lowLimitCase
+# data[country][date] = (0: newCases, 1: newDeaths, 2: newRecoveries, 3: totalCases, 4: totalDeaths, 5: totalRecoveries, 6: totalActiveCases)
+# interestedIndex: the index in data to use for plotting
+# dayLimit sets the number of days to plot
+# maxCase sets the maximum number of cases to plot
 def drawCases(data, interestedIndex=3, title="Total Cases", filename='totalCases.pdf', dayLimit=-1, lowLimitCase=200, maxCase = -1, interestedCountries=[], ignoreCountries=['Worldwide', 'International conveyance (Diamond Princess)', 'International', 'Others', 'World', 'Cruise Ship'], maxExcludeCountry = ['China']):
   # Collect interested data depending on rowIndex. Sort country by number of cases
   # data[country][date] = (newCases, newDeaths, newRecoveries, totalCases, totalDeaths, totalRecoveries, totalActiveCases)
@@ -32,40 +37,58 @@ def drawCases(data, interestedIndex=3, title="Total Cases", filename='totalCases
       if country not in interestData: interestData[country] = collections.OrderedDict()
       interestData[country][date] = case
 
-  # Convert to plt format
-  # interestDataPlt[country] = ([iDay],[case])
-  interestDataPlt = collections.OrderedDict()
+  # Convert to rootDataFormat
+  # interestDataRoot[country] = ([iDay],[case])
+  interestDataRoot = collections.OrderedDict()
   for country in interestData:
     for iDate, date in enumerate(interestData[country]):
-      if country not in interestDataPlt: interestDataPlt[country] = [array.array('d'), array.array('d')]
-      interestDataPlt[country][0].append(iDate)
-      interestDataPlt[country][1].append(interestData[country][date])
+      if country not in interestDataRoot: interestDataRoot[country] = [array.array('d'), array.array('d')]
+      interestDataRoot[country][0].append(iDate)
+      interestDataRoot[country][1].append(interestData[country][date])
 
-  markers = ['o','v','^','<','>','s','p','*','H','D']
-  colors = ['k', 'blue', 'orange', 'green', 'red', 'purple', 'brown', 'pink', 'grey', 'olive', 'cyan']
+  # Draw settings
+  canvas = ROOT.TCanvas("c"+title,"c"+title,750,750)
+  markers = [20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 32, 33, 34]
+  colors = [1, 2, 3, 4, 6, 7, 8, 9]
 
-  plt.figure(figsize=(7.5,7.5))
-  plt.rcParams['legend.numpoints'] = 1
+  # Make TGraphs
+  graphs = collections.OrderedDict()
+  for iCountry, country in enumerate(interestDataRoot):
+    entries = len(interestDataRoot[country][0])
+    days = interestDataRoot[country][0]
+    cases = interestDataRoot[country][1]
+    graph = ROOT.TGraph(entries, days, cases)
+    graph.SetTitle(country)
+    graph.SetName(country)
+    graphs[country] = graph
+
+  # Make TSpline from TGraphs to process graphs more dynamically
+  sgraphs = collections.OrderedDict()
   maxEntry = 0
   minEntry = 0
   maxDays = 0
-  for iCountry, country in enumerate(interestDataPlt):
+  legend = ROOT.TLegend(0.15, 0.4, 0.35, 0.9)
+  for iGraph, (country, graph) in enumerate(graphs.items()):
     xArray = array.array('d')
     yArray = array.array('d')
-    nPoints = len(interestDataPlt[country][0])
+    spline = ROOT.TSpline5("s"+country, graph)
+    nPoints = graph.GetN()
     passIncreasePoint = lowLimitCase
     hasPassed = False
     countPoints = 0
+    offset = 0
+    # Make data from TSpline
+    # Append days only after passing increase threshold
     for iPoint in xrange(nPoints):
       if iPoint != nPoints-1 : 
-        increase = interestDataPlt[country][1][iPoint+1]-interestDataPlt[country][1][iPoint]
+        increase = spline.Eval(iPoint+1)-spline.Eval(iPoint)
         if increase > passIncreasePoint:
           hasPassed = True
       # Has passed increase threshold
       if hasPassed:
         # Append data
         xArray.append(countPoints)
-        yArray.append(interestDataPlt[country][1][iPoint])
+        yArray.append(spline.Eval(iPoint))
         # Find y max and x max
         if country not in maxExcludeCountry:
           # Limit number of days
@@ -74,22 +97,36 @@ def drawCases(data, interestedIndex=3, title="Total Cases", filename='totalCases
             maxEntry = max([maxEntry, max(yArray)])
             maxDays = max([maxDays, max(xArray)])
         countPoints += 1
-    # If there is data passing increase threshold plot graph
+    # If there is data passing increase threshold make TGraph
     if countPoints!= 0:
-      line, = plt.plot(xArray, yArray, color=colors[iCountry%len(colors)], linestyle='solid', marker=markers[iCountry%len(markers)], label=country, markersize=10)
-      plt.legend(loc="upper left", fontsize=10)
-   
-  # Graph settings
-  axes = plt.gca()
-  axes.set_xlim([0,maxDays+1])
-  axes.set_xlabel('Days', fontsize=20)
-  axes.set_xticks(np.arange(0,maxDays+1, step=1))
-  axes.set_ylim([minEntry, maxEntry*1.2])
-  axes.set_ylabel('Cases', fontsize=20)
-  axes.set_title(title, fontsize=30, y=1.04)
+      sgraph = ROOT.TGraph(countPoints, xArray, yArray)
+      sgraph.SetTitle(graph.GetTitle())
+      sgraph.SetMarkerSize(2)
+      sgraph.SetMarkerStyle(markers[iGraph%len(markers)])
+      sgraph.SetMarkerColor(colors[iGraph%len(colors)])
+      sgraph.SetLineColor(colors[iGraph%len(colors)])
+      legend.AddEntry(sgraph,sgraph.GetTitle(),"lp")
+      if len(sgraphs) == 0: 
+        sgraph.Draw("APL")
+      else: sgraph.Draw("PL")
+      sgraphs[country] = sgraph
 
-  print('Saving '+filename)
-  plt.savefig(filename)
+  # Graph settings
+  sgraph = list(sgraphs.values())[0]
+  if maxCase == -1 or maxEntry*1.2 < maxCase:
+    sgraph.SetMaximum(maxEntry*1.2)
+  else:
+    sgraph.SetMaximum(maxCase)
+  sgraph.SetMinimum(minEntry)
+  sgraph.GetXaxis().SetLimits(0,maxDays+1)
+  sgraph.GetXaxis().SetTitle("days")
+  sgraph.GetYaxis().SetTitle("cases")
+  sgraph.GetYaxis().SetTitleOffset(2)
+  sgraph.SetTitle(title)
+  canvas.SetLeftMargin(0.15)
+  legend.Draw()
+
+  canvas.SaveAs(filename)
 
 def getDataFromWorldInData(dataFolder='./', tag=''):
   if not os.path.exists(dataFolder): os.makesdir(dataFolder)
