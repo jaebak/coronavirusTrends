@@ -249,12 +249,12 @@ def getDataFromJohnHopkins(dataFolder='./', tag=''):
 
   # Calculate new case and active cases
   for country in data:
-    for iDate in xrange(len(data[country])):
-      date = data[country].keys()[iDate]
+    for iDate in range(len(data[country])):
+      date = list(data[country].keys())[iDate]
       newCases, newDeaths, newRecoveries, totalCases, totalDeaths, totalRecoveries, totalActiveCases = data[country][date]
       data[country][date] = [newCases, newDeaths, newRecoveries, totalCases, totalDeaths, totalRecoveries, totalCases - totalRecoveries]
       if iDate == 0: continue
-      previousDate = data[country].keys()[iDate-1]
+      previousDate = list(data[country].keys())[iDate-1]
       previousNewCases, previousNewDeaths, previousNewRecoveries, previousTotalCases, previousTotalDeaths, previousTotalRecoveries, previousTotalActiveCases = data[country][previousDate]
       data[country][date] = [totalCases - previousTotalCases, totalDeaths - previousTotalDeaths, totalRecoveries - previousTotalRecoveries, totalCases, totalDeaths, totalRecoveries, totalCases - totalRecoveries]
 
