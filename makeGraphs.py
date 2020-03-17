@@ -1,5 +1,8 @@
 #!/usr/bin/env python
-import urllib2
+try:
+  import urllib2
+except:
+  import urllib.request as urllib2
 import csv
 import array
 import collections
@@ -16,7 +19,7 @@ def drawCases(data, interestedIndex=3, title="Total Cases", filename='totalCases
   # data[country][date] = (newCases, newDeaths, newRecoveries, totalCases, totalDeaths, totalRecoveries, totalActiveCases)
   # interestData[country][date] = case
   interestData = collections.OrderedDict()
-  for country in sorted(data, key=lambda c: max(data[c].values()[-1]), reverse=True):
+  for country in sorted(data, key=lambda c: list(data[c].values())[-1][4], reverse=True):
     # Ignore countries
     if country in ignoreCountries: continue
     # Select interested countries
@@ -56,7 +59,7 @@ def drawCases(data, interestedIndex=3, title="Total Cases", filename='totalCases
     passIncreasePoint = lowLimitCase
     hasPassed = False
     countPoints = 0
-    for iPoint in xrange(nPoints):
+    for iPoint in range(nPoints):
       if iPoint != nPoints-1 : 
         increase = interestDataPlt[country][1][iPoint+1]-interestDataPlt[country][1][iPoint]
         if increase > passIncreasePoint:
@@ -99,7 +102,7 @@ def getDataFromWorldInData(dataFolder='./', tag=''):
   # Gets data from url
   inFile = urllib2.urlopen(confirmedUrl)
   # Saves data
-  tempData = inFile.read()
+  tempData = inFile.read().decode('utf-8')
   print('Saving '+confirmedUrl+' to '+filepath)
   with open(filepath,'w') as outFile:
     outFile.write(tempData)
@@ -153,7 +156,7 @@ def getDataFromJohnHopkins(dataFolder='./', tag=''):
     # Gets data from url
     inFile = urllib2.urlopen(url)
     # Saves data
-    tempData = inFile.read()
+    tempData = inFile.read().decode('utf-8')
     print('Saving '+url+' to '+filepath)
     with open(filepath,'w') as outFile:
       outFile.write(tempData)

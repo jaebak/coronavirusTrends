@@ -1,6 +1,9 @@
-#!/opt/local/bin/python3.6
+#!/usr/bin/env python3.6
 import ROOT
-import urllib2
+try:
+  import urllib2
+except:
+  import urllib.request as urllib2
 import csv
 import array
 import collections
@@ -9,7 +12,6 @@ import os
 import glob
 import datetime
 import argparse
-##!/usr/bin/env python
 
 # Plots countries that have a daily increase of above lowLimitCase
 # data[country][date] = (0: newCases, 1: newDeaths, 2: newRecoveries, 3: totalCases, 4: totalDeaths, 5: totalRecoveries, 6: totalActiveCases)
@@ -21,7 +23,7 @@ def drawCases(data, interestedIndex=3, title="Total Cases", filename='totalCases
   # data[country][date] = (newCases, newDeaths, newRecoveries, totalCases, totalDeaths, totalRecoveries, totalActiveCases)
   # interestData[country][date] = case
   interestData = collections.OrderedDict()
-  for country in sorted(data, key=lambda c: max(data[c].values()[-1]), reverse=True):
+  for country in sorted(data, key=lambda c: list(data[c].values())[-1][4], reverse=True):
     # Ignore countries
     if country in ignoreCountries: continue
     # Select interested countries
@@ -79,7 +81,7 @@ def drawCases(data, interestedIndex=3, title="Total Cases", filename='totalCases
     offset = 0
     # Make data from TSpline
     # Append days only after passing increase threshold
-    for iPoint in xrange(nPoints):
+    for iPoint in range(nPoints):
       if iPoint != nPoints-1 : 
         increase = spline.Eval(iPoint+1)-spline.Eval(iPoint)
         if increase > passIncreasePoint:
@@ -136,7 +138,7 @@ def getDataFromWorldInData(dataFolder='./', tag=''):
   # Gets data from url
   inFile = urllib2.urlopen(confirmedUrl)
   # Saves data
-  tempData = inFile.read()
+  tempData = inFile.read().decode('utf-8')
   print('Saving '+confirmedUrl+' to '+filepath)
   with open(filepath,'w') as outFile:
     outFile.write(tempData)
@@ -190,7 +192,7 @@ def getDataFromJohnHopkins(dataFolder='./', tag=''):
     # Gets data from url
     inFile = urllib2.urlopen(url)
     # Saves data
-    tempData = inFile.read()
+    tempData = inFile.read().decode('utf-8')
     print('Saving '+url+' to '+filepath)
     with open(filepath,'w') as outFile:
       outFile.write(tempData)
