@@ -85,10 +85,10 @@ def drawCases(data, interestedIndex=3, title="Total Cases", filename='totalCases
   # Graph settings
   axes = plt.gca()
   axes.set_xlim([0,maxDays+1])
-  axes.set_xlabel('Days', fontsize=20)
+  axes.set_xlabel("Number of days from a daily increase of "+str(lowLimitCase)+" cases", fontsize=15)
   axes.set_xticks(np.arange(0,maxDays+1, step=1))
   axes.set_ylim([minEntry, maxEntry*1.2])
-  axes.set_ylabel('Cases', fontsize=20)
+  axes.set_ylabel('Cases', fontsize=15)
   axes.set_title(title, fontsize=30, y=1.04)
 
   print('Saving '+filename)
@@ -189,7 +189,7 @@ def getDataFromJohnHopkins(dataFolder='./', tag=''):
         # Append data
         for iDate, date in enumerate(dates):
           date = datetime.datetime.strptime(date,'%m/%d/%y')
-          case = int(cases[iDate])
+          case = 0 if cases[iDate]=="" else int(cases[iDate])
           if country not in rawData:
             rawData[country] = {}
           if date not in rawData[country]:

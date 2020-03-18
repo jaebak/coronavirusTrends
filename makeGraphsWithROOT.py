@@ -121,8 +121,9 @@ def drawCases(data, interestedIndex=3, title="Total Cases", filename='totalCases
     sgraph.SetMaximum(maxCase)
   sgraph.SetMinimum(minEntry)
   sgraph.GetXaxis().SetLimits(0,maxDays+1)
-  sgraph.GetXaxis().SetTitle("days")
-  sgraph.GetYaxis().SetTitle("cases")
+  sgraph.GetXaxis().SetTitle("Number of days from a daily increase of "+str(lowLimitCase)+" cases")
+  sgraph.GetXaxis().CenterTitle();
+  sgraph.GetYaxis().SetTitle("Cases")
   sgraph.GetYaxis().SetTitleOffset(2)
   sgraph.SetTitle(title)
   canvas.SetLeftMargin(0.15)
@@ -225,7 +226,7 @@ def getDataFromJohnHopkins(dataFolder='./', tag=''):
         # Append data
         for iDate, date in enumerate(dates):
           date = datetime.datetime.strptime(date,'%m/%d/%y')
-          case = int(cases[iDate])
+          case = 0 if cases[iDate]=="" else int(cases[iDate])
           if country not in rawData:
             rawData[country] = {}
           if date not in rawData[country]:
